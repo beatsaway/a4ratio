@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A0–A10 / Golden Ratio 3D Blocks</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #0e1015;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom subtle scrollbars for chip bar on narrow screens */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+  <!-- Import Map for Three.js & OrbitControls via CDN -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body class="text-slate-100 antialiased">
+
+  <!-- Full-Viewport 3D Canvas Container -->
+  <div id="canvas-container" class="fixed inset-0 w-full h-full"></div>
+
+  <!-- Top Minimal Control Bar -->
+  <header class="fixed top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <!-- Left Cluster: Ratio Mode & Snap Controls -->
+    <div class="flex flex-wrap items-center gap-1.5 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 p-1.5 rounded-2xl shadow-xl pointer-events-auto">
+      <!-- Ratio Switcher -->
+      <div class="flex items-center bg-slate-950/70 rounded-xl p-0.5 border border-slate-800">
+        <button id="btn-ratio-iso" class="px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all bg-indigo-500 text-white shadow-sm">
+          ISO A <span class="mono opacity-80">1:√2</span>
+        </button>
+        <button id="btn-ratio-golden" class="px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all text-slate-400 hover:text-slate-200">
+          Golden <span class="mono opacity-80">1:φ</span>
+        </button>
+      </div>
+
+      <div class="h-5 w-px bg-slate-800 mx-0.5"></div>
+
+      <!-- Magnetic Edge/Corner Snap Toggle -->
+      <button id="btn-snap-magnet" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30" title="Magnetic Edge & Corner Snap">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M6 15V9a6 6 0 0 1 12 0v6" />
+          <path d="M6 15h4v4H6zM14 15h4v4h-4z" />
+        </svg>
+        <span>Snap: ON</span>
+      </button>
+
+      <!-- Grid Snap Toggle -->
+      <button id="btn-snap-grid" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-slate-800/80 text-slate-400 border border-slate-700/60 hover:text-slate-200" title="Grid Increment Snap">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+        </svg>
+        <span>Grid: OFF</span>
+      </button>
+    </div>
+
+    <!-- Center/Right Cluster: Block Actions & Layout Presets -->
+    <div class="flex flex-wrap items-center gap-1.5 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 p-1.5 rounded-2xl shadow-xl pointer-events-auto">
+      <!-- Rotate 90° -->
+      <button id="btn-rotate" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/70 transition-all active:scale-95" title="Rotate Selected 90° (R)">
+        <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+        </svg>
+        <span>Rotate 90°</span>
+        <kbd class="mono text-[10px] px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">R</kbd>
+      </button>
+
+      <!-- Stack / Unstack Layer -->
+      <button id="btn-stack" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/70 transition-all active:scale-95" title="Toggle Layer Elevation (Y)">
+        <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
+        </svg>
+        <span id="label-stack">Layer: 0</span>
+        <kbd class="mono text-[10px] px-1.5 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800">Y</kbd>
+      </button>
+
+      <div class="h-5 w-px bg-slate-800 mx-0.5"></div>
+
+      <!-- Auto-Fit / Nest into A0 -->
+      <button id="btn-nest" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-all active:scale-95" title="Auto-Nest A1–A10 inside A0">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <line x1="12" y1="3" x2="12" y2="21" />
+          <line x1="12" y1="12" x2="21" y2="12" />
+          <line x1="16.5" y1="12" x2="16.5" y2="21" />
+        </svg>
+        <span>Auto-Fit</span>
+      </button>
+
+      <!-- Reset Spread Layout -->
+      <button id="btn-reset" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/70 transition-all active:scale-95" title="Reset Layout">
+        <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+        <span>Reset</span>
+      </button>
+
+      <!-- Theme Toggle (Studio Dark / Light) -->
+      <button id="btn-theme" class="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/70 transition-all active:scale-95" title="Toggle Studio Theme">
+        <svg id="icon-theme-sun" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+        <svg id="icon-theme-moon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Subtle Live Dimension Telemetry Pill (Bottom Left) -->
+  <div id="telemetry-pill" class="fixed bottom-16 left-3 z-20 flex items-center gap-2.5 bg-slate-900/80 backdrop-blur-md border border-slate-700/70 px-3 py-1.5 rounded-xl text-xs shadow-lg pointer-events-none">
+    <span id="telemetry-swatch" class="w-2.5 h-2.5 rounded-sm bg-indigo-500"></span>
+    <span id="telemetry-name" class="font-bold mono text-slate-100">A4</span>
+    <span class="text-slate-600">|</span>
+    <span id="telemetry-dims" class="mono text-slate-300">210 × 297 mm</span>
+    <span id="telemetry-snap-badge" class="hidden px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">SNAP</span>
+  </div>
+
+  <!-- Bottom Block Visibility & Selection Dock (A0 – A10) -->
+  <footer class="fixed bottom-3 left-3 right-3 z-20 flex justify-center pointer-events-none">
+    <div class="flex items-center gap-1 bg-slate-900/85 backdrop-blur-md border border-slate-700/70 p-1.5 rounded-2xl shadow-2xl overflow-x-auto max-w-full no-scrollbar pointer-events-auto">
+      <button id="btn-toggle-all" class="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold mono bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-all shrink-0">
+        ALL
+      </button>
+      <div class="h-5 w-px bg-slate-800 mx-0.5 shrink-0"></div>
+      <div id="block-chips" class="flex items-center gap-1"></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    /**
+     * Architectural Block Series Configuration
+     * Base unit scale: 1 world unit = 100 mm
+     * A0 ISO 216 = 841 mm x 1189 mm => 8.41 x 11.89 units (Area ~ 1 m²)
+     */
+    const SERIES_SPECS = [
+      { id: 'A0',  level: 0,  color: '#3b82f6', isoMM: [841, 1189] },
+      { id: 'A1',  level: 1,  color: '#6366f1', isoMM: [594, 841]  },
+      { id: 'A2',  level: 2,  color: '#8b5cf6', isoMM: [420, 594]  },
+      { id: 'A3',  level: 3,  color: '#ec4899', isoMM: [297, 420]  },
+      { id: 'A4',  level: 4,  color: '#f43f5e', isoMM: [210, 297]  },
+      { id: 'A5',  level: 5,  color: '#f97316', isoMM: [148, 210]  },
+      { id: 'A6',  level: 6,  color: '#eab308', isoMM: [105, 148]  },
+      { id: 'A7',  level: 7,  color: '#22c55e', isoMM: [74,  105]  },
+      { id: 'A8',  level: 8,  color: '#14b8a6', isoMM: [52,  74]   },
+      { id: 'A9',  level: 9,  color: '#06b6d4', isoMM: [37,  52]   },
+      { id: 'A10', level: 10, color: '#38bdf8', isoMM: [26,  37]   }
+    ];
+
+    const PHI = (1 + Math.sqrt(5)) / 2; // 1.61803398875
+    const BLOCK_HEIGHT = 0.28;          // Uniform sleek slab thickness
+    const LAYER_STEP = 0.30;            // Vertical stacking step
+    const SNAP_THRESHOLD = 0.38;        // Magnetic edge/corner snap radius
+    const GRID_STEP = 0.5;              // Optional grid increment
+
+    // Application State
+    const state = {
+      ratioMode: 'ISO',     // 'ISO' (1:sqrt(2)) | 'GOLDEN' (1:phi)
+      magnetSnap: true,
+      gridSnap: false,
+      darkMode: true,
+      selectedId: 'A4',
+      draggingBlock: null,
+      dragOffset: new THREE.Vector3(),
+      dragPlaneY: 0,
+      isSnapped: false
+    };
+
+    // Scene, Camera, Renderer
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#0e1015');
+    scene.fog = new THREE.FogExp2('#0e1015', 0.014);
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 18.5, 16.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    container.appendChild(renderer.domElement);
+
+    // OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.maxPolarAngle = Math.PI * 0.47;
+    controls.minDistance = 4;
+    controls.maxDistance = 48;
+    controls.target.set(0, 0, 0);
+
+    // Studio Lighting
+    const ambientLight = new THREE.AmbientLight('#ffffff', 0.72);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight('#ffffff', 1.35);
+    dirLight.position.set(12, 24, 14);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 2;
+    dirLight.shadow.camera.far = 60;
+    const d = 18;
+    dirLight.shadow.camera.left = -d;
+    dirLight.shadow.camera.right = d;
+    dirLight.shadow.camera.top = d;
+    dirLight.shadow.camera.bottom = -d;
+    dirLight.shadow.bias = -0.0005;
+    scene.add(dirLight);
+
+    const fillLight = new THREE.DirectionalLight('#93c5fd', 0.35);
+    fillLight.position.set(-14, 10, -12);
+    scene.add(fillLight);
+
+    // Architectural Studio Ground Floor + Subtle Grid
+    const floorGeo = new THREE.PlaneGeometry(140, 140);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: '#13161f',
+      roughness: 0.92,
+      metalness: 0.05
+    });
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.rotation.x = -Math.PI / 2;
+    floorMesh.position.y = -0.002;
+    floorMesh.receiveShadow = true;
+    scene.add(floorMesh);
+
+    let gridHelper = new THREE.GridHelper(60, 60, '#2a3142', '#1b202c');
+    scene.add(gridHelper);
+
+    // Visual Snap Guide Lines (shown dynamically when magnetic snap triggers)
+    const snapGuideGroup = new THREE.Group();
+    scene.add(snapGuideGroup);
+
+    const snapLineMat = new THREE.LineBasicMaterial({
+      color: '#34d399',
+      transparent: true,
+      opacity: 0.95
+    });
+
+    function clearSnapGuides() {
+      while (snapGuideGroup.children.length > 0) {
+        const child = snapGuideGroup.children[0];
+        snapGuideGroup.remove(child);
+        if (child.geometry) child.geometry.dispose();
+      }
+    }
+
+    function addSnapGuideLine(p1, p2) {
+      const geo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+      const line = new THREE.Line(geo, snapLineMat);
+      snapGuideGroup.add(line);
+    }
+
+    /**
+     * Compute exact (width, depth) dimensions in world units for a given level & ratio mode
+     */
+    function getDimensionsForSpec(spec, mode) {
+      if (mode === 'ISO') {
+        // Exact ISO 216 dimensions in world units (1 unit = 100mm)
+        return {
+          w: spec.isoMM[0] / 100,
+          d: spec.isoMM[1] / 100,
+          mmW: spec.isoMM[0],
+          mmD: spec.isoMM[1]
+        };
+      } else {
+        // Golden Ratio spiral subdivision starting from A0 height = 11.89 (1189mm)
+        // Each step scales by 1/phi or subdivides golden rectangle cleanly
+        // Using recursive golden rectangle sequence so A(n) nests into A(n-1)
+        let longSide = 11.89;
+        let shortSide = longSide / PHI;
+        for (let i = 0; i < spec.level; i++) {
+          const nextLong = shortSide;
+          const nextShort = longSide - shortSide; // exact golden section remainder!
+          longSide = nextLong;
+          shortSide = nextShort;
+        }
+        return {
+          w: shortSide,
+          d: longSide,
+          mmW: Math.round(shortSide * 100),
+          mmD: Math.round(longSide * 100)
+        };
+      }
+    }
+
+    /**
+     * Create crisp canvas texture for the top face of each block
+     */
+    function createTopLabelTexture(spec, dims, isSelected) {
+      const canvas = document.createElement('canvas');
+      const res = 512;
+      canvas.width = res;
+      canvas.height = res;
+      const ctx = canvas.getContext('2d');
+
+      // Base color fill
+      ctx.fillStyle = spec.color;
+      ctx.fillRect(0, 0, res, res);
+
+      // Subtle architectural inner hairline border
+      const inset = 18;
+      ctx.strokeStyle = isSelected ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.32)';
+      ctx.lineWidth = isSelected ? 10 : 4;
+      ctx.strokeRect(inset, inset, res - inset * 2, res - inset * 2);
+
+      // Subtle diagonal proportion line
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(inset, res - inset);
+      ctx.lineTo(res - inset, inset);
+      ctx.stroke();
+
+      // Bold crisp label (e.g., "A0", "A1"...)
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '700 132px Inter, sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.28)';
+      ctx.shadowBlur = 12;
+      ctx.fillText(spec.id, res / 2, res / 2 - 18);
+
+      // Dimension subtitle in mm
+      ctx.font = '600 44px "JetBrains Mono", monospace';
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(`${dims.mmW}×${dims.mmD}`, res / 2, res / 2 + 78);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // Store all block entities
+    const blocks = [];
+    const blockMeshes = [];
+
+    /**
+     * Build or rebuild a block's geometry & materials
+     */
+    function buildBlockEntity(spec) {
+      const dims = getDimensionsForSpec(spec, state.ratioMode);
+      const group = new THREE.Group();
+      group.userData.id = spec.id;
+
+      const geo = new THREE.BoxGeometry(dims.w, BLOCK_HEIGHT, dims.d);
+
+      const sideMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(spec.color).multiplyScalar(0.82),
+        roughness: 0.45,
+        metalness: 0.08
+      });
+
+      const topTex = createTopLabelTexture(spec, dims, state.selectedId === spec.id);
+      const topMat = new THREE.MeshStandardMaterial({
+        map: topTex,
+        roughness: 0.38,
+        metalness: 0.05
+      });
+
+      const materials = [sideMat, sideMat, topMat, sideMat, sideMat, sideMat];
+      const mesh = new THREE.Mesh(geo, materials);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.blockId = spec.id;
+      group.add(mesh);
+
+      // Crisp edge outline
+      const edgesGeo = new THREE.EdgesGeometry(geo);
+      const edgesMat = new THREE.LineBasicMaterial({
+        color: state.selectedId === spec.id ? '#ffffff' : '#0f172a',
+        transparent: true,
+        opacity: state.selectedId === spec.id ? 0.95 : 0.65
+      });
+      const edges = new THREE.LineSegments(edgesGeo, edgesMat);
+      group.add(edges);
+
+      scene.add(group);
+
+      const entity = {
+        spec,
+        group,
+        mesh,
+        edges,
+        w: dims.w,
+        d: dims.d,
+        mmW: dims.mmW,
+        mmD: dims.mmD,
+        rotated: false, // false = 0° (w along X, d along Z), true = 90° (d along X, w along Z)
+        layer: 0,       // integer elevation layer (0 = floor)
+        visible: true
+      };
+
+      blocks.push(entity);
+      blockMeshes.push(mesh);
+      return entity;
+    }
+
+    // Initialize all A0–A10 blocks
+    SERIES_SPECS.forEach((spec) => buildBlockEntity(spec));
+
+    /**
+     * Refresh geometry/textures when ratio mode or selection changes
+     */
+    function refreshBlockVisuals(block) {
+      const dims = getDimensionsForSpec(block.spec, state.ratioMode);
+      block.w = dims.w;
+      block.d = dims.d;
+      block.mmW = dims.mmW;
+      block.mmD = dims.mmD;
+
+      const isSelected = state.selectedId === block.spec.id;
+
+      // Replace box geometry
+      block.mesh.geometry.dispose();
+      block.mesh.geometry = new THREE.BoxGeometry(dims.w, BLOCK_HEIGHT, dims.d);
+
+      // Update top label texture
+      const oldTopMat = block.mesh.material[2];
+      if (oldTopMat.map) oldTopMat.map.dispose();
+      oldTopMat.map = createTopLabelTexture(block.spec, dims, isSelected);
+      oldTopMat.needsUpdate = true;
+
+      // Update outline highlight
+      block.edges.geometry.dispose();
+      block.edges.geometry = new THREE.EdgesGeometry(block.mesh.geometry);
+      block.edges.material.color.set(isSelected ? '#ffffff' : (state.darkMode ? '#090d16' : '#334155'));
+      block.edges.material.opacity = isSelected ? 0.98 : 0.6;
+    }
+
+    /**
+     * Get effective X and Z extents of a block taking its 90° rotation into account
+     */
+    function getEffectiveHalfExtents(block) {
+      return block.rotated
+        ? { hx: block.d / 2, hz: block.w / 2 }
+        : { hx: block.w / 2, hz: block.d / 2 };
+    }
+
+    /**
+     * Arrange blocks in a clean architectural gallery spread
+     */
+    function layoutSpread() {
+      clearSnapGuides();
+      // Place A0 on the left, A1–A4 in middle column, A5–A10 neatly arranged on right
+      const a0 = blocks[0];
+      a0.rotated = false;
+      a0.layer = 0;
+      a0.group.rotation.y = 0;
+      a0.group.position.set(-5.8, BLOCK_HEIGHT / 2, 0);
+
+      // Column 2: A1 & A2
+      let curZ = -5.945;
+      [1, 2].forEach((idx) => {
+        const b = blocks[idx];
+        b.rotated = false;
+        b.layer = 0;
+        b.group.rotation.y = 0;
+        b.group.position.set(2.2, BLOCK_HEIGHT / 2, curZ + b.d / 2);
+        curZ += b.d + 0.65;
+      });
+
+      // Column 3: A3, A4, A5, A6, A7, A8, A9, A10
+      let col3Z = -5.945;
+      for (let idx = 3; idx < blocks.length; idx++) {
+        const b = blocks[idx];
+        b.rotated = false;
+        b.layer = 0;
+        b.group.rotation.y = 0;
+        b.group.position.set(7.6, BLOCK_HEIGHT / 2, col3Z + b.d / 2);
+        col3Z += b.d + 0.45;
+      }
+
+      updateTelemetry();
+      syncChipUI();
+    }
+
+    /**
+     * Auto-Fit / Nest A1–A10 directly on top of A0 in classic geometric subdivision spiral
+     */
+    function layoutNestedInA0() {
+      clearSnapGuides();
+      const a0 = blocks[0];
+      a0.visible = true;
+      a0.group.visible = true;
+      a0.rotated = false;
+      a0.layer = 0;
+      a0.group.rotation.y = 0;
+      a0.group.position.set(0, BLOCK_HEIGHT / 2, 0);
+
+      // Subdivide A0 footprint recursively:
+      // A0 spans [-w/2, +w/2] in X and [-d/2, +d/2] in Z (with d > w initially)
+      let minX = -a0.w / 2;
+      let maxX = a0.w / 2;
+      let minZ = -a0.d / 2;
+      let maxZ = a0.d / 2;
+
+      for (let i = 1; i < blocks.length; i++) {
+        const b = blocks[i];
+        b.visible = true;
+        b.group.visible = true;
+        b.layer = 1; // Rest neatly on top of A0 slab so all labels & edges are crisp
+
+        const spanX = maxX - minX;
+        const spanZ = maxZ - minZ;
+
+        if (state.ratioMode === 'ISO') {
+          // Cut longest axis in half
+          if (spanZ >= spanX) {
+            // Place A(i) in top half [minZ, minZ + b.w] rotated 90° so its long side spans X
+            b.rotated = true;
+            b.group.rotation.y = Math.PI / 2;
+            const placeZ = minZ + b.w / 2;
+            const placeX = (minX + maxX) / 2;
+            b.group.position.set(placeX, BLOCK_HEIGHT / 2 + b.layer * LAYER_STEP, placeZ);
+            minZ += b.w;
+          } else {
+            // Place A(i) in left half [minX, minX + b.w] unrotated so its long side spans Z
+            b.rotated = false;
+            b.group.rotation.y = 0;
+            const placeX = minX + b.w / 2;
+            const placeZ = (minZ + maxZ) / 2;
+            b.group.position.set(placeX, BLOCK_HEIGHT / 2 + b.layer * LAYER_STEP, placeZ);
+            minX += b.w;
+          }
+        } else {
+          // Golden Ratio spiral subdivision: cut square/golden section off the long side
+          if (spanZ >= spanX) {
+            b.rotated = true;
+            b.group.rotation.y = Math.PI / 2;
+            const placeZ = minZ + b.w / 2;
+            const placeX = minX + b.d / 2;
+            b.group.position.set(placeX, BLOCK_HEIGHT / 2 + b.layer * LAYER_STEP, placeZ);
+            minZ += b.w;
+          } else {
+            b.rotated = false;
+            b.group.rotation.y = 0;
+            const placeX = minX + b.w / 2;
+            const placeZ = minZ + b.d / 2;
+            b.group.position.set(placeX, BLOCK_HEIGHT / 2 + b.layer * LAYER_STEP, placeZ);
+            minX += b.w;
+          }
+        }
+      }
+
+      updateTelemetry();
+      syncChipUI();
+    }
+
+    /**
+     * Smart Magnetic Edge-to-Edge & Corner-to-Corner Snapping
+     */
+    function applyMagneticSnap(activeBlock, rawX, rawZ) {
+      clearSnapGuides();
+      let targetX = rawX;
+      let targetZ = rawZ;
+      let snappedX = false;
+      let snappedZ = false;
+
+      // Optional grid snap first
+      if (state.gridSnap) {
+        targetX = Math.round(targetX / GRID_STEP) * GRID_STEP;
+        targetZ = Math.round(targetZ / GRID_STEP) * GRID_STEP;
+      }
+
+      if (!state.magnetSnap) {
+        state.isSnapped = state.gridSnap;
+        return { x: targetX, z: targetZ };
+      }
+
+      const { hx, hz } = getEffectiveHalfExtents(activeBlock);
+
+      let bestDistX = SNAP_THRESHOLD;
+      let bestDistZ = SNAP_THRESHOLD;
+      let snapXCandidate = targetX;
+      let snapZCandidate = targetZ;
+      let guideXInfo = null;
+      let guideZInfo = null;
+
+      // Active block candidate X edges: left, center, right
+      const activeXEdges = [
+        { offset: -hx, label: 'left' },
+        { offset: 0,   label: 'center' },
+        { offset: +hx, label: 'right' }
+      ];
+      // Active block candidate Z edges: top, center, bottom
+      const activeZEdges = [
+        { offset: -hz, label: 'top' },
+        { offset: 0,   label: 'center' },
+        { offset: +hz, label: 'bottom' }
+      ];
+
+      for (const other of blocks) {
+        if (other === activeBlock || !other.visible) continue;
+
+        const { hx: ohx, hz: ohz } = getEffectiveHalfExtents(other);
+        const ox = other.group.position.x;
+        const oz = other.group.position.z;
+
+        const otherXLines = [ox - ohx, ox, ox + ohx];
+        const otherZLines = [oz - ohz, oz, oz + ohz];
+
+        // Check X-axis edge alignments (flush side-by-side or edge-aligned)
+        for (const aEdge of activeXEdges) {
+          const curEdgePos = rawX + aEdge.offset;
+          for (const targetLine of otherXLines) {
+            const dist = Math.abs(curEdgePos - targetLine);
+            if (dist < bestDistX) {
+              bestDistX = dist;
+              snapXCandidate = targetLine - aEdge.offset;
+              snappedX = true;
+              guideXInfo = {
+                x: targetLine,
+                z1: Math.min(rawZ - hz, oz - ohz) - 0.5,
+                z2: Math.max(rawZ + hz, oz + ohz) + 0.5
+              };
+            }
+          }
+        }
+
+        // Check Z-axis edge alignments
+        for (const aEdge of activeZEdges) {
+          const curEdgePos = rawZ + aEdge.offset;
+          for (const targetLine of otherZLines) {
+            const dist = Math.abs(curEdgePos - targetLine);
+            if (dist < bestDistZ) {
+              bestDistZ = dist;
+              snapZCandidate = targetLine - aEdge.offset;
+              snappedZ = true;
+              guideZInfo = {
+                z: targetLine,
+                x1: Math.min(rawX - hx, ox - ohx) - 0.5,
+                x2: Math.max(rawX + hx, ox + ohx) + 0.5
+              };
+            }
+          }
+        }
+      }
+
+      if (snappedX) {
+        targetX = snapXCandidate;
+        if (guideXInfo) {
+          const yGuide = activeBlock.group.position.y + BLOCK_HEIGHT / 2 + 0.015;
+          addSnapGuideLine(
+            new THREE.Vector3(guideXInfo.x, yGuide, guideXInfo.z1),
+            new THREE.Vector3(guideXInfo.x, yGuide, guideXInfo.z2)
+          );
+        }
+      }
+
+      if (snappedZ) {
+        targetZ = snapZCandidate;
+        if (guideZInfo) {
+          const yGuide = activeBlock.group.position.y + BLOCK_HEIGHT / 2 + 0.015;
+          addSnapGuideLine(
+            new THREE.Vector3(guideZInfo.x1, yGuide, guideZInfo.z),
+            new THREE.Vector3(guideZInfo.x2, yGuide, guideZInfo.z)
+          );
+        }
+      }
+
+      state.isSnapped = snappedX || snappedZ;
+      return { x: targetX, z: targetZ };
+    }
+
+    /**
+     * Select a block and update UI highlights
+     */
+    function selectBlock(id) {
+      if (state.selectedId === id) return;
+      const prev = blocks.find((b) => b.spec.id === state.selectedId);
+      state.selectedId = id;
+      const next = blocks.find((b) => b.spec.id === id);
+
+      if (prev) refreshBlockVisuals(prev);
+      if (next) refreshBlockVisuals(next);
+
+      updateTelemetry();
+      syncChipUI();
+    }
+
+    /**
+     * Rotate currently selected block 90°
+     */
+    function rotateSelectedBlock() {
+      const b = blocks.find((item) => item.spec.id === state.selectedId);
+      if (!b) return;
+      b.rotated = !b.rotated;
+      b.group.rotation.y = b.rotated ? Math.PI / 2 : 0;
+
+      // Re-run snap at current position so edges align immediately after rotation
+      const snapped = applyMagneticSnap(b, b.group.position.x, b.group.position.z);
+      b.group.position.x = snapped.x;
+      b.group.position.z = snapped.z;
+      updateTelemetry();
+    }
+
+    /**
+     * Cycle elevation layer (0 -> 1 -> 2 -> 0) for stacking blocks on top of A0/A1/etc.
+     */
+    function cycleSelectedLayer() {
+      const b = blocks.find((item) => item.spec.id === state.selectedId);
+      if (!b) return;
+      b.layer = (b.layer + 1) % 4;
+      b.group.position.y = BLOCK_HEIGHT / 2 + b.layer * LAYER_STEP;
+      updateTelemetry();
+    }
+
+    /**
+     * Raycasting & Pointer Drag-and-Drop on XZ Plane
+     */
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const intersectPoint = new THREE.Vector3();
+
+    function updatePointerNDC(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    function onPointerDown(event) {
+      if (event.button !== 0 && event.pointerType === 'mouse') return;
+      updatePointerNDC(event);
+      raycaster.setFromCamera(pointer, camera);
+
+      const visibleMeshes = blocks.filter((b) => b.visible).map((b) => b.mesh);
+      const hits = raycaster.intersectObjects(visibleMeshes, false);
+
+      if (hits.length > 0) {
+        const hitMesh = hits[0].object;
+        const block = blocks.find((b) => b.mesh === hitMesh);
+        if (block) {
+          selectBlock(block.spec.id);
+          state.draggingBlock = block;
+          controls.enabled = false; // Temporarily disable OrbitControls during drag
+
+          // Set horizontal drag plane at the block's current base height
+          const baseY = block.layer * LAYER_STEP;
+          groundPlane.setFromNormalAndCoplanarPoint(
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, baseY, 0)
+          );
+
+          if (raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
+            state.dragOffset.set(
+              block.group.position.x - intersectPoint.x,
+              0,
+              block.group.position.z - intersectPoint.z
+            );
+          }
+
+          // Subtle lift feedback while dragging
+          block.group.position.y = BLOCK_HEIGHT / 2 + block.layer * LAYER_STEP + 0.05;
+          document.body.style.cursor = 'grabbing';
+        }
+      }
+    }
+
+    function onPointerMove(event) {
+      updatePointerNDC(event);
+      raycaster.setFromCamera(pointer, camera);
+
+      if (state.draggingBlock) {
+        if (raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
+          const rawX = intersectPoint.x + state.dragOffset.x;
+          const rawZ = intersectPoint.z + state.dragOffset.z;
+
+          const snapped = applyMagneticSnap(state.draggingBlock, rawX, rawZ);
+          state.draggingBlock.group.position.x = snapped.x;
+          state.draggingBlock.group.position.z = snapped.z;
+          updateTelemetry();
+        }
+        return;
+      }
+
+      // Hover cursor feedback
+      const visibleMeshes = blocks.filter((b) => b.visible).map((b) => b.mesh);
+      const hits = raycaster.intersectObjects(visibleMeshes, false);
+      document.body.style.cursor = hits.length > 0 ? 'grab' : 'default';
+    }
+
+    function onPointerUp() {
+      if (state.draggingBlock) {
+        const b = state.draggingBlock;
+        b.group.position.y = BLOCK_HEIGHT / 2 + b.layer * LAYER_STEP;
+        state.draggingBlock = null;
+        controls.enabled = true;
+        document.body.style.cursor = 'grab';
+        // Fade out guide lines cleanly after placement
+        setTimeout(() => {
+          if (!state.draggingBlock) clearSnapGuides();
+        }, 450);
+      }
+    }
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+
+    // Keyboard Shortcuts: R = Rotate 90°, Y = Layer Elevate, Escape = Clear Snap Guides
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'r' || e.key === 'R') {
+        rotateSelectedBlock();
+      } else if (e.key === 'y' || e.key === 'Y') {
+        cycleSelectedLayer();
+      }
+    });
+
+    /**
+     * UI Bindings & Synchronization
+     */
+    const btnRatioIso = document.getElementById('btn-ratio-iso');
+    const btnRatioGolden = document.getElementById('btn-ratio-golden');
+    const btnSnapMagnet = document.getElementById('btn-snap-magnet');
+    const btnSnapGrid = document.getElementById('btn-snap-grid');
+    const btnRotate = document.getElementById('btn-rotate');
+    const btnStack = document.getElementById('btn-stack');
+    const labelStack = document.getElementById('label-stack');
+    const btnNest = document.getElementById('btn-nest');
+    const btnReset = document.getElementById('btn-reset');
+    const btnTheme = document.getElementById('btn-theme');
+    const btnToggleAll = document.getElementById('btn-toggle-all');
+    const blockChipsContainer = document.getElementById('block-chips');
+
+    function setRatioMode(mode) {
+      if (state.ratioMode === mode) return;
+      state.ratioMode = mode;
+
+      if (mode === 'ISO') {
+        btnRatioIso.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all bg-indigo-500 text-white shadow-sm';
+        btnRatioGolden.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all text-slate-400 hover:text-slate-200';
+      } else {
+        btnRatioGolden.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all bg-amber-500 text-slate-950 shadow-sm';
+        btnRatioIso.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all text-slate-400 hover:text-slate-200';
+      }
+
+      blocks.forEach((b) => refreshBlockVisuals(b));
+      layoutSpread();
+    }
+
+    btnRatioIso.addEventListener('click', () => setRatioMode('ISO'));
+    btnRatioGolden.addEventListener('click', () => setRatioMode('GOLDEN'));
+
+    btnSnapMagnet.addEventListener('click', () => {
+      state.magnetSnap = !state.magnetSnap;
+      if (state.magnetSnap) {
+        btnSnapMagnet.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30';
+        btnSnapMagnet.querySelector('span').textContent = 'Snap: ON';
+      } else {
+        btnSnapMagnet.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-slate-800/80 text-slate-400 border border-slate-700/60 hover:text-slate-200';
+        btnSnapMagnet.querySelector('span').textContent = 'Snap: OFF';
+        clearSnapGuides();
+      }
+    });
+
+    btnSnapGrid.addEventListener('click', () => {
+      state.gridSnap = !state.gridSnap;
+      if (state.gridSnap) {
+        btnSnapGrid.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/30';
+        btnSnapGrid.querySelector('span').textContent = 'Grid: ON';
+      } else {
+        btnSnapGrid.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-slate-800/80 text-slate-400 border border-slate-700/60 hover:text-slate-200';
+        btnSnapGrid.querySelector('span').textContent = 'Grid: OFF';
+      }
+    });
+
+    btnRotate.addEventListener('click', rotateSelectedBlock);
+    btnStack.addEventListener('click', cycleSelectedLayer);
+    btnNest.addEventListener('click', layoutNestedInA0);
+    btnReset.addEventListener('click', layoutSpread);
+
+    // Toggle Dark / Light Architectural Studio Mode
+    btnTheme.addEventListener('click', () => {
+      state.darkMode = !state.darkMode;
+      const sun = document.getElementById('icon-theme-sun');
+      const moon = document.getElementById('icon-theme-moon');
+
+      scene.remove(gridHelper);
+      if (state.darkMode) {
+        scene.background.set('#0e1015');
+        scene.fog.color.set('#0e1015');
+        floorMat.color.set('#13161f');
+        gridHelper = new THREE.GridHelper(60, 60, '#2a3142', '#1b202c');
+        sun.classList.add('hidden');
+        moon.classList.remove('hidden');
+      } else {
+        scene.background.set('#e8ecf2');
+        scene.fog.color.set('#e8ecf2');
+        floorMat.color.set('#dfe5ee');
+        gridHelper = new THREE.GridHelper(60, 60, '#b6c2d4', '#cbd5e1');
+        sun.classList.remove('hidden');
+        moon.classList.add('hidden');
+      }
+      scene.add(gridHelper);
+      blocks.forEach((b) => refreshBlockVisuals(b));
+    });
+
+    // Build A0–A10 Bottom Dock Chips (Click to select, Eye icon to toggle visibility)
+    function buildBottomChips() {
+      blockChipsContainer.innerHTML = '';
+      blocks.forEach((b) => {
+        const wrapper = document.createElement('div');
+        wrapper.id = `chip-${b.spec.id}`;
+        wrapper.className = 'flex items-center rounded-xl border transition-all overflow-hidden shrink-0';
+
+        const selectBtn = document.createElement('button');
+        selectBtn.className = 'flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 text-xs font-semibold mono transition-colors';
+        selectBtn.innerHTML = `
+          <span class="w-2 h-2 rounded-full" style="background:${b.spec.color}"></span>
+          <span>${b.spec.id}</span>
+        `;
+        selectBtn.addEventListener('click', () => {
+          if (!b.visible) {
+            b.visible = true;
+            b.group.visible = true;
+          }
+          selectBlock(b.spec.id);
+        });
+
+        const visBtn = document.createElement('button');
+        visBtn.className = 'pr-2 pl-1 py-1.5 text-slate-400 hover:text-white transition-colors';
+        visBtn.title = `Toggle ${b.spec.id}`;
+        visBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        `;
+        visBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          b.visible = !b.visible;
+          b.group.visible = b.visible;
+          syncChipUI();
+        });
+
+        wrapper.appendChild(selectBtn);
+        wrapper.appendChild(visBtn);
+        blockChipsContainer.appendChild(wrapper);
+      });
+    }
+
+    function syncChipUI() {
+      blocks.forEach((b) => {
+        const chip = document.getElementById(`chip-${b.spec.id}`);
+        if (!chip) return;
+        const isSelected = state.selectedId === b.spec.id;
+        chip.className = `flex items-center rounded-xl border transition-all overflow-hidden shrink-0 ${
+          isSelected
+            ? 'bg-slate-800 border-indigo-400/80 text-white shadow-sm'
+            : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+        } ${!b.visible ? 'opacity-40' : ''}`;
+      });
+    }
+
+    btnToggleAll.addEventListener('click', () => {
+      const anyHidden = blocks.some((b) => !b.visible);
+      blocks.forEach((b) => {
+        b.visible = anyHidden;
+        b.group.visible = anyHidden;
+      });
+      syncChipUI();
+    });
+
+    function updateTelemetry() {
+      const b = blocks.find((item) => item.spec.id === state.selectedId) || blocks[0];
+      document.getElementById('telemetry-swatch').style.backgroundColor = b.spec.color;
+      document.getElementById('telemetry-name').textContent = b.spec.id;
+      const dispW = b.rotated ? b.mmD : b.mmW;
+      const dispD = b.rotated ? b.mmW : b.mmD;
+      document.getElementById('telemetry-dims').textContent = `${dispW} × ${dispD} mm`;
+      labelStack.textContent = `Layer: ${b.layer}`;
+
+      const snapBadge = document.getElementById('telemetry-snap-badge');
+      if (state.isSnapped && state.draggingBlock) {
+        snapBadge.classList.remove('hidden');
+      } else {
+        snapBadge.classList.add('hidden');
+      }
+    }
+
+    // Handle Viewport Resizing
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Boot Scene & Render Loop
+    buildBottomChips();
+    layoutSpread();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.onload = () => {
+      animate();
+    };
+  </script>
+</body>
+</html>
